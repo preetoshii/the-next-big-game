@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import PlayerSetup from './interface/PlayerSetup'
+import GameController from './interface/GameController'
+import SimonSays from './mechanics/SimonSays'
+import useGameStore from './state/GameState'
 import './App.css'
 
 // Global Game object for console experimentation
@@ -11,9 +14,21 @@ window.Game = {
 }
 
 function App() {
-  // Local state to manage game flow
+  // Get state from Zustand store
+  const { 
+    gameConfig, 
+    gameStatus,
+    currentRound,
+    currentTeam,
+    currentCommand,
+    pauseGame,
+    resumeGame,
+    skipCommand,
+    resetGame
+  } = useGameStore();
+  
+  // Local state for UI flow
   const [gameStarted, setGameStarted] = useState(false);
-  const [gameConfig, setGameConfig] = useState(null);
 
   // Initialize speech synthesis
   useEffect(() => {
@@ -38,14 +53,37 @@ function App() {
    */
   const handleGameStart = (config) => {
     console.log('Game starting with config:', config);
-    setGameConfig(config);
     setGameStarted(true);
     
     // Store config globally for debugging
     window.Game.gameConfig = config;
-    
-    // Announce game start
-    window.Game.speak(`Game starting with ${config.players.length} players!`);
+  };
+
+  /**
+   * Handles round completion
+   */
+  const handleRoundComplete = (roundData) => {
+    console.log('Round complete:', roundData);
+    // Could track scores here if needed
+  };
+
+  /**
+   * Handles game completion
+   */
+  const handleGameComplete = () => {
+    console.log('Game complete!');
+    // Show final screen or return to setup
+    setTimeout(() => {
+      window.Game.speak('Would you like to play again?');
+    }, 2000);
+  };
+
+  /**
+   * Handle exit - reset everything
+   */
+  const handleExit = () => {
+    setGameStarted(false);
+    resetGame();
   };
 
   // Show PlayerSetup if game hasn't started
@@ -63,7 +101,14 @@ function App() {
     );
   }
 
-  // Game view (placeholder for now)
+  // Game view with SimonSays mechanic and GameController UI
+  const currentState = {
+    round: currentRound + 1,
+    team: currentTeam,
+    command: currentCommand,
+    state: gameStatus
+  };
+  
   return (
     <div className="App">
       <motion.div 
@@ -71,28 +116,22 @@ function App() {
         animate={{ opacity: 1 }}
         className="game-content"
       >
-        <h1>Game in Progress</h1>
-        <p>Teams: {gameConfig.teams.left} vs {gameConfig.teams.right}</p>
-        <p>Rounds: {gameConfig.rounds}</p>
+        {/* SimonSays mechanic - handles game logic, no visual output */}
+        <SimonSays
+          gameConfig={window.Game.gameConfig}
+          onRoundComplete={handleRoundComplete}
+          onGameComplete={handleGameComplete}
+        />
         
-        <div className="active-players">
-          <h3>Players</h3>
-          {gameConfig.players.map(player => (
-            <span key={player.id} className="player-badge">
-              {player.name} ({gameConfig.teams[player.team]})
-            </span>
-          ))}
-        </div>
-        
-        <button 
-          onClick={() => {
-            setGameStarted(false);
-            setGameConfig(null);
-          }}
-          style={{ marginTop: '2rem' }}
-        >
-          Back to Setup
-        </button>
+        {/* GameController UI - displays game state and controls */}
+        <GameController
+          gameConfig={window.Game.gameConfig}
+          currentState={currentState}
+          onPause={pauseGame}
+          onResume={resumeGame}
+          onSkip={skipCommand}
+          onExit={handleExit}
+        />
       </motion.div>
     </div>
   )
